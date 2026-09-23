@@ -121,7 +121,7 @@ export class Game {
             alt: act.alt,
           });
           this.input.consume();
-          this.renderer.onEvents(events);
+          this.renderer.onEvents(events, w);
           for (const e of events) if (e.type === 'outcome') this.onOutcome(e.outcome);
           this.acc -= STEP_DT;
           steps++;
@@ -136,7 +136,7 @@ export class Game {
 
     this.stats.record(realDt, steps);
     const alpha = w.outcome === 'playing' ? Math.min(1, this.acc / STEP_DT) : 1;
-    this.renderer.render(w, alpha, { yaw: this.input.yaw, pitch: this.input.pitch }, gameDt, {
+    this.renderer.render(w, alpha, { yaw: this.input.yaw, pitch: this.input.pitch }, gameDt, realDt, {
       levelName: this.level.name,
       levelIndex: this.levelIndex,
       levelCount: this.levels.length,

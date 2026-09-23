@@ -15,6 +15,8 @@ export const G = {
   BLOCK: 97,
   SHADE: 98,
   RING: 99,
+  HBAR: 100,
+  VBAR: 101,
 } as const;
 
 export function glyphOf(ch: string): number {
@@ -63,6 +65,13 @@ export function bakeAtlas(): THREE.Texture {
   {
     const { x, y } = cell(G.BLOCK);
     ctx.fillRect(x + 2, y + 4, GW - 4, GH - 8);
+  }
+  {
+    // Thick bars for the crosshair: much heavier than '-' and '|'.
+    const h = cell(G.HBAR);
+    ctx.fillRect(h.x, h.y + GH * 0.38, GW, GH * 0.24);
+    const v = cell(G.VBAR);
+    ctx.fillRect(v.x + GW * 0.3, v.y, GW * 0.4, GH);
   }
   {
     const { x, y } = cell(G.SHADE);

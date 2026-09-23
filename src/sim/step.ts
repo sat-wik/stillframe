@@ -113,7 +113,7 @@ function punch(w: WorldState, events: SimEvent[]): void {
   const p = w.player;
   p.punchCooldown = PLAYER.punchCooldown;
   const target = inReach(w, w.enemies, PLAYER.punchRange + 0.4);
-  events.push({ type: 'punch', hit: target !== null, pos: clone(p.pos) });
+  events.push({ type: 'punch', by: 'player', hit: target !== null, pos: clone(p.pos) });
   if (!target) return;
   if (target.weapon) {
     // Punching an armed enemy disarms them; the gun drops where they stand.

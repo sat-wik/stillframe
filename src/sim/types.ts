@@ -130,7 +130,7 @@ export interface WorldState {
 
 export type SimEvent =
   | { type: 'shot'; owner: 'player' | 'enemy'; weapon: WeaponId; pos: Vec3 }
-  | { type: 'punch'; hit: boolean; pos: Vec3 }
+  | { type: 'punch'; by: 'player' | 'enemy'; hit: boolean; pos: Vec3 }
   | { type: 'hit'; target: 'enemy' | 'player' | 'wall' | 'bullet'; pos: Vec3 }
   | { type: 'enemyDeath'; id: number; kind: EnemyKind; pos: Vec3 }
   | { type: 'disarm'; id: number; pos: Vec3 }

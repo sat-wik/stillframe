@@ -120,7 +120,7 @@ function fire(w: WorldState, e: Enemy, dist: number, reach: number, events: SimE
     e.cooldown = Math.max(def.fireInterval - def.aimTime, WEAPONS[e.weapon].cooldown);
   } else {
     const hit = dist <= reach + 0.3 && w.player.alive;
-    events.push({ type: 'punch', hit, pos: { ...e.pos } });
+    events.push({ type: 'punch', by: 'enemy', hit, pos: { ...e.pos } });
     if (hit) {
       w.player.alive = false;
       w.killedBy = { kind: 'punch', shooter: e.id };

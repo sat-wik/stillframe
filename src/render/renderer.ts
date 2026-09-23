@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { WEAPONS } from '../content/defs';
+import { ENEMIES, PLAYER, WEAPONS } from '../content/defs';
+import { segmentCapsule, segmentVsLevel } from '../sim/collision';
 import type { SimEvent, WorldState } from '../sim/types';
+import { dirFromYawPitch } from '../sim/vec';
 import { ATLAS_COLS, ATLAS_ROWS, G, bakeAtlas } from './ascii/atlas';
 import { ASCII_FRAG, ASCII_VERT } from './ascii/shaders';
 import { Overlay } from './overlay';
@@ -112,18 +114,27 @@ export class Renderer {
     this.overlay.reset(seed);
   }
 
-  onEvents(events: readonly SimEvent[]): void {
+  onEvents(events: readonly SimEvent[], w: WorldState): void {
     this.overlay.onEvents(events);
+    const vm = this.view.viewModel;
+    for (const e of events) {
+      if (e.type === 'shot' && e.owner === 'player') {
+        vm.onShot();
+        this.overlay.flash(vm.muzzleWorld(e.weapon), Cls.HudAlert, true);
+      } else if (e.type === 'punch' && e.by === 'player' && w.player.alive) {
+        vm.onPunch();
+      }
+    }
   }
 
-  render(w: WorldState, alpha: number, look: { yaw: number; pitch: number }, gameDt: number, hud: HudInfo): void {
-    this.view.sync(w, alpha, look, w.gameTime + alpha / 120);
-    this.overlay.advance(gameDt);
+  render(w: WorldState, alpha: number, look: { yaw: number; pitch: number }, gameDt: number, realDt: number, hud: HudInfo): void {
+    this.view.sync(w, alpha, look, w.gameTime + alpha / 120, realDt);
+    this.overlay.advance(gameDt, realDt);
 
     const grid = this.overlay.grid;
     grid.clear();
     this.overlay.drawWorld(w, alpha, this.view.camera, FAR);
-    this.drawHud(w, hud);
+    this.drawHud(w, hud, look);
     grid.upload();
 
     this.uniforms.uView!.value = this.viewMode;
@@ -131,12 +142,17 @@ export class Renderer {
     this.gl.setClearColor(new THREE.Color(0, 0, 1), 1); // lum 0, class 0, depth 1
     this.gl.clear();
     this.gl.render(this.view.scene, this.view.camera);
+    // Viewmodel: same target, fresh depth, so the gun never clips into walls.
+    this.gl.autoClear = false;
+    this.gl.clearDepth();
+    this.gl.render(this.view.viewModel.scene, this.view.camera);
+    this.gl.autoClear = true;
     this.gl.setRenderTarget(null);
     this.gl.setClearColor(0x000000, 1);
     this.gl.render(this.quadScene, this.quadCam);
   }
 
-  private drawHud(w: WorldState, hud: HudInfo): void {
+  private drawHud(w: WorldState, hud: HudInfo, look: { yaw: number; pitch: number }): void {
     const g = this.overlay.grid;
     const { cols, rows } = g;
     const p = w.player;
@@ -146,8 +162,7 @@ export class Renderer {
     g.blank(0, rows - 1, cols);
     g.blank(0, rows - 2, cols);
 
-    // Crosshair.
-    if (p.alive) g.put(Math.floor(cols / 2), Math.floor(rows / 2), G.RING, Cls.HudDim, 0, 0.8);
+    if (p.alive) drawCrosshair(g, onTarget(w, look) ? Cls.Target : Cls.HudAlert);
 
     g.text(1, 0, `${String(hud.levelIndex + 1).padStart(2, '0')}/${String(hud.levelCount).padStart(2, '0')} ${hud.levelName.toUpperCase()}`, Cls.HudDim);
 
@@ -186,6 +201,39 @@ export class Renderer {
       g.text(x, 1 + i, line, Cls.HudDim);
     });
   }
+}
+
+/**
+ * A big four-arm crosshair with a gap, drawn on top of everything with a dark
+ * backing so it reads over bright walls. Cells are about twice as tall as
+ * wide, so horizontal arms are twice as long in cells.
+ */
+function drawCrosshair(g: Overlay['grid'], cls: number): void {
+  const cx = Math.floor(g.cols / 2);
+  const cy = Math.floor(g.rows / 2);
+  for (let dx = -5; dx <= 5; dx++) for (let dy = -3; dy <= 3; dy++) g.put(cx + dx, cy + dy, G.BLOCK, Cls.Empty, 0, 0);
+  g.put(cx, cy, G.BULLET, cls, 0, 1);
+  for (const dx of [2, 3, 4]) {
+    g.put(cx - dx, cy, G.HBAR, cls, 0, 1);
+    g.put(cx + dx, cy, G.HBAR, cls, 0, 1);
+  }
+  for (const dy of [2, 3]) {
+    g.put(cx, cy + dy, G.VBAR, cls, 0, 1);
+    g.put(cx, cy - dy, G.VBAR, cls, 0, 1);
+  }
+}
+
+/** Whether the aim ray hits an enemy before any wall. */
+function onTarget(w: WorldState, look: { yaw: number; pitch: number }): boolean {
+  const p = w.player.pos;
+  const eye = { x: p.x, y: p.y + PLAYER.eyeHeight, z: p.z };
+  const d = dirFromYawPitch(look.yaw, look.pitch);
+  const end = { x: eye.x + d.x * 50, y: eye.y + d.y * 50, z: eye.z + d.z * 50 };
+  const wall = segmentVsLevel(eye, end, w.level.boxes, w.level.cylinders) ?? 1;
+  return w.enemies.some((e) => {
+    const t = segmentCapsule(eye, end, e.pos, ENEMIES[e.kind].radius, ENEMIES[e.kind].height);
+    return t !== null && t < wall;
+  });
 }
 
 function banner(g: Overlay['grid'], rowFromTop: number, text: string, cls: number): void {
