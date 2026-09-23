@@ -76,11 +76,31 @@ interface Debris {
 }
 
 const DEBRIS_GLYPHS = '#%*+=:;.'.split('').map(glyphOf);
-const TRAIL = [0.012, 0.024, 0.036, 0.048]; // seconds of game time behind the head (open item O4: 4 cells)
+// Seconds of game time behind the head. Longer than open item O4's default
+// (4 cells) after playtest feedback that bullets were too easy to lose.
+const TRAIL = [0.012, 0.024, 0.036, 0.05, 0.065, 0.08];
+
+interface Flash {
+  x: number;
+  y: number;
+  z: number;
+  life: number; // real seconds
+  cls: number;
+  onTop: boolean;
+}
+
+const FLASH_TIME = 0.09;
+const STAR = [
+  [-1, 1, '\\'], [0, 1, '|'], [1, 1, '/'],
+  [-1, 0, '-'], [1, 0, '-'],
+  [-1, -1, '/'], [0, -1, '|'], [1, -1, '\\'],
+] as const;
 
 export class Overlay {
   readonly grid = new CellGrid();
   private debris: Debris[] = [];
+  private flashes: Flash[] = [];
+  private clock = 0;
   /** Cosmetic stream: never shared with the sim, so visuals can't desync gameplay. */
   private rng: RngStream = createStream(0xdeb415);
   private v = new THREE.Vector3();
@@ -88,11 +108,18 @@ export class Overlay {
 
   reset(seed: number): void {
     this.debris = [];
+    this.flashes = [];
     this.rng = createStream(seed ^ 0xdeb415);
+  }
+
+  /** A muzzle flash, drawn for a fixed slice of real time so it always registers. */
+  flash(pos: { x: number; y: number; z: number }, cls: number, onTop = false): void {
+    this.flashes.push({ x: pos.x, y: pos.y, z: pos.z, life: FLASH_TIME, cls, onTop });
   }
 
   onEvents(events: readonly SimEvent[]): void {
     for (const e of events) {
+      if (e.type === 'shot' && e.owner === 'enemy') this.flash(e.pos, Cls.EnemyBullet);
       if (e.type !== 'enemyDeath') continue;
       const def = ENEMIES[e.kind];
       // Death shatter: the enemy bursts into scattering characters.
@@ -114,7 +141,10 @@ export class Overlay {
   }
 
   /** Debris advances in game time, so it hangs in the air when time slows. */
-  advance(gameDt: number): void {
+  advance(gameDt: number, realDt: number): void {
+    this.clock += realDt;
+    for (const f of this.flashes) f.life -= realDt;
+    this.flashes = this.flashes.filter((f) => f.life > 0);
     for (const d of this.debris) {
       d.vy -= 9.8 * gameDt;
       d.x += d.vx * gameDt;
@@ -159,23 +189,51 @@ export class Overlay {
       if (c) this.grid.put(c.col, c.row, glyphOf('!'), Cls.Enemy, c.depth, 1);
     }
 
-    // Trails first, then heads, so a head is never overwritten by a trail.
-    for (const pass of [0, 1] as const) {
-      for (const b of w.bullets) {
-        const p = lerp(b.prevPos, b.pos, alpha);
-        let cls: number = b.owner === 'player' ? Cls.PlayerBullet : Cls.EnemyBullet;
-        if (b.owner === 'enemy' && this.threatHighlight && w.player.alive && isThreat(p, b.vel, chest)) cls = Cls.Threat;
-        const head = this.cellOf(camera, p.x, p.y, p.z, far);
-        if (pass === 1) {
-          if (head) this.grid.put(head.col, head.row, G.BULLET, cls, head.depth, 1);
-          continue;
+    // Three passes so nothing important is overwritten: trails, then halos,
+    // then the bright bullet cores on top.
+    const blink = Math.floor(this.clock / 0.09) % 2 === 0;
+    const heads: { col: number; row: number; depth: number; cls: number; size: number }[] = [];
+    for (const b of w.bullets) {
+      const p = lerp(b.prevPos, b.pos, alpha);
+      let cls: number = b.owner === 'player' ? Cls.PlayerBullet : Cls.EnemyBullet;
+      const threat = b.owner === 'enemy' && w.player.alive && isThreat(p, b.vel, chest);
+      if (threat && this.threatHighlight && blink) cls = Cls.Threat;
+      const head = this.cellOf(camera, p.x, p.y, p.z, far);
+
+      TRAIL.forEach((t, i) => {
+        const c = this.cellOf(camera, p.x - b.vel.x * t, p.y - b.vel.y * t, p.z - b.vel.z * t, far);
+        if (!c || (head && c.col === head.col && c.row === head.row)) return;
+        this.grid.put(c.col, c.row, i < 2 ? G.BULLET : G.DOT, b.owner === 'player' ? Cls.PlayerBullet : Cls.EnemyBullet, c.depth, 0.9 - i * 0.12);
+      });
+      if (!head) continue;
+      // Size grows as the bullet closes in: a plus far away, a 3x3 block in
+      // the mid range, 5x3 when it is about to arrive. Threats get one size up.
+      const dist = camera.position.distanceTo(this.v.set(p.x, p.y, p.z));
+      let size = dist < 4 ? 2 : dist < 12 ? 1 : 0;
+      if (threat) size = Math.min(2, size + 1);
+      heads.push({ ...head, cls, size });
+    }
+    for (const h of heads) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -2; dc <= 2; dc++) {
+          if (dc === 0 && dr === 0) continue;
+          const plus = (dc === 0 || dr === 0) && Math.abs(dc) <= 1;
+          const inBlock = Math.abs(dc) <= 1;
+          if (!(h.size === 0 ? plus : h.size === 1 ? inBlock : true)) continue;
+          const corner = dc !== 0 && dr !== 0;
+          this.grid.put(h.col + dc, h.row + dr, G.BLOCK, h.cls, h.depth, corner || Math.abs(dc) === 2 ? 0.28 : 0.5);
         }
-        TRAIL.forEach((t, i) => {
-          const c = this.cellOf(camera, p.x - b.vel.x * t, p.y - b.vel.y * t, p.z - b.vel.z * t, far);
-          if (!c || (head && c.col === head.col && c.row === head.row)) return;
-          this.grid.put(c.col, c.row, G.DOT, cls, c.depth, 0.75 - i * 0.16);
-        });
       }
+    }
+    for (const h of heads) this.grid.put(h.col, h.row, G.BULLET, h.cls, h.depth, 1);
+
+    for (const f of this.flashes) {
+      const c = this.cellOf(camera, f.x, f.y, f.z, far);
+      if (!c) continue;
+      const depth = f.onTop ? 1 : c.depth;
+      const k = f.life / FLASH_TIME;
+      this.grid.put(c.col, c.row, glyphOf('*'), f.cls, depth, 1);
+      for (const [dc, dr, ch] of STAR) this.grid.put(c.col + dc, c.row + dr, glyphOf(ch), f.cls, depth, 0.5 + 0.5 * k);
     }
   }
 }

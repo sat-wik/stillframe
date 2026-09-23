@@ -60,6 +60,10 @@ Three.js, and may not call `Math.random` or `Date.now`. ESLint enforces this.
 ## Status
 
 - **M0 (skeleton)**: done.
-- **M1 (readability spike)**: done and ready for playtesting.
+- **M1 (readability spike)**: done and ready for playtesting. After the first
+  review: bigger bullets whose glow grows as they close in, human-shaped
+  enemies holding visible guns, a bold crosshair that turns red on target,
+  and a first-person view of your gun and fists with recoil, punches and
+  muzzle flashes.
 - **M2 onward**: see the spec. Throwing, enemy weapon pickup/drop polish,
   replays, the editor and audio are not built yet.

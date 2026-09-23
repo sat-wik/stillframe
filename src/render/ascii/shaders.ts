@@ -96,7 +96,15 @@ void main() {
   if (s2.b < near.b) near = s2;
   if (s3.b < near.b) near = s3;
   int cls = clsOf(near);
-  if (clsOf(s0) == 2 || clsOf(s1) == 2 || clsOf(s2) == 2 || clsOf(s3) == 2) cls = 2;
+  // Priority classes claim the cell if any sample hits them, so thin shapes
+  // (a gun barrel, a distant enemy) never vanish in cell averaging. Guns win
+  // over the enemy holding them. The viewmodel is always nearest anyway.
+  int c0 = clsOf(s0), c1 = clsOf(s1), c2 = clsOf(s2), c3 = clsOf(s3);
+  if (cls != 11) {
+    if (c0 == 2 || c1 == 2 || c2 == 2 || c3 == 2) cls = 2;
+    if (c0 == 10 || c1 == 10 || c2 == 10 || c3 == 10) cls = 10;
+  }
+  bool vivid = cls == 2 || cls == 10 || cls == 13; // enemies, enemy guns, the player's gun
 
   // Overlay (bullets, debris, HUD) bypasses the ASCII filter entirely.
   vec4 ov = texelFetch(uOverlay, ivec2(cell), 0);
@@ -146,15 +154,17 @@ void main() {
     else if (ey > 2.0 * ex) g = G_DASH;
     else g = gx * gy > 0.0 ? G_SLASH : G_BACK;
   } else {
-    float l = cls == 2 ? max(lum, 0.55) : lum; // minimum contrast for enemies
+    // Minimum contrast: enemies never go sparse, and enemy guns are always the
+    // densest glyphs on screen.
+    float l = cls == 10 ? max(lum, 0.85) : vivid ? max(lum, 0.55) : lum;
     g = RAMP[int(clamp(l, 0.0, 0.999) * 10.0)];
   }
 
   // Depth fog: far cells darken and thin out.
   float meters = depth * uFar;
   float fog = 1.0 - 0.7 * smoothstep(8.0, 45.0, meters);
-  float bright = cls == 2 ? max(0.85, fog) : mix(0.45, 1.0, clamp(lum, 0.0, 1.0)) * fog;
-  if (edge) bright = max(bright, cls == 2 ? 1.0 : 0.75 * fog);
+  float bright = vivid ? max(0.85, fog) : mix(0.45, 1.0, clamp(lum, 0.0, 1.0)) * fog;
+  if (edge) bright = max(bright, vivid ? 1.0 : 0.75 * fog);
   float m = glyphMask(g, local);
   fragColor = vec4(uPalette[cls] * uTint * bright * m, 1.0);
 }`;
