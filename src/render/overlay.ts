@@ -73,9 +73,11 @@ interface Debris {
   vz: number;
   life: number;
   glyph: number;
+  cls: number;
 }
 
 const DEBRIS_GLYPHS = '#%*+=:;.'.split('').map(glyphOf);
+const GLASS_GLYPHS = ".,'`/\\".split('').map(glyphOf);
 // Seconds of game time behind the head. Longer than open item O4's default
 // (4 cells) after playtest feedback that bullets were too easy to lose.
 const TRAIL = [0.012, 0.024, 0.036, 0.05, 0.065, 0.08];
@@ -120,6 +122,11 @@ export class Overlay {
   onEvents(events: readonly SimEvent[]): void {
     for (const e of events) {
       if (e.type === 'shot' && e.owner === 'enemy') this.flash(e.pos, Cls.EnemyBullet);
+      if (e.type === 'impact') {
+        if (e.target === 'enemy') this.flash(e.pos, Cls.Pickup);
+        if (e.broke) this.shatterGlass(e.pos);
+        continue;
+      }
       if (e.type !== 'enemyDeath') continue;
       const def = ENEMIES[e.kind];
       // Death shatter: the enemy bursts into scattering characters.
@@ -135,8 +142,28 @@ export class Overlay {
           vz: Math.sin(a) * sp,
           life: nextRange(this.rng, 0.8, 2.2),
           glyph: DEBRIS_GLYPHS[Math.floor(nextFloat(this.rng) * DEBRIS_GLYPHS.length)]!,
+          cls: Cls.Enemy,
         });
       }
+    }
+  }
+
+  /** A broken bottle: a small spray of glass in the pickup hue. */
+  private shatterGlass(pos: { x: number; y: number; z: number }): void {
+    for (let i = 0; i < 26; i++) {
+      const a = nextFloat(this.rng) * Math.PI * 2;
+      const sp = nextRange(this.rng, 0.8, 3.5);
+      this.debris.push({
+        x: pos.x,
+        y: pos.y,
+        z: pos.z,
+        vx: Math.cos(a) * sp,
+        vy: nextRange(this.rng, 0.3, 3),
+        vz: Math.sin(a) * sp,
+        life: nextRange(this.rng, 0.5, 1.3),
+        glyph: GLASS_GLYPHS[Math.floor(nextFloat(this.rng) * GLASS_GLYPHS.length)]!,
+        cls: Cls.Pickup,
+      });
     }
   }
 
@@ -178,7 +205,7 @@ export class Overlay {
 
     for (const d of this.debris) {
       const c = this.cellOf(camera, d.x, d.y, d.z, far);
-      if (c) this.grid.put(c.col, c.row, d.glyph, Cls.Enemy, c.depth, Math.min(1, d.life * 1.5));
+      if (c) this.grid.put(c.col, c.row, d.glyph, d.cls, c.depth, Math.min(1, d.life * 1.5));
     }
 
     // Aim telegraph cue: a "!" over an enemy that is about to fire.

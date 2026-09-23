@@ -1,7 +1,7 @@
 {
   "id": "01-first-light",
   "name": "First Light",
-  "version": 1,
+  "version": 2,
   "bounds": {
     "w": 16,
     "d": 22,
@@ -136,7 +136,32 @@
       "h": 3
     }
   ],
-  "props": [],
+  "props": [
+    {
+      "kind": "bottle",
+      "pos": {
+        "x": 6.5,
+        "y": 0,
+        "z": 17.5
+      }
+    },
+    {
+      "kind": "bottle",
+      "pos": {
+        "x": 9.5,
+        "y": 0,
+        "z": 17.5
+      }
+    },
+    {
+      "kind": "chair",
+      "pos": {
+        "x": 12.5,
+        "y": 0,
+        "z": 15
+      }
+    }
+  ],
   "enemies": [
     {
       "kind": "gunner",

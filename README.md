@@ -12,7 +12,8 @@ npm run dev        # http://localhost:5173
 ```
 
 Click to lock the mouse. **WASD** moves, the **mouse** aims, **LMB** fires,
-**RMB** punches or grabs a dropped gun, holding **Shift** aims down
+**RMB** throws what you hold, or empty-handed grabs a prop or gun in
+reach and otherwise punches (LMB also throws a bottle or chair), holding **Shift** aims down
 the sights, **R** restarts, **N** goes to the
 next room after a clear, **Esc** pauses, and **`** toggles the debug overlay
 (**V** cycles through the raw 3D, depth and class-ID views).
@@ -66,5 +67,7 @@ Three.js, and may not call `Math.random` or `Date.now`. ESLint enforces this.
   enemies holding visible guns, a bold crosshair that turns red on target,
   and a first-person view of your gun and fists with recoil, punches and
   muzzle flashes.
-- **M2 onward**: see the spec. Throwing, enemy weapon pickup/drop polish,
-  replays, the editor and audio are not built yet.
+- **M2 (core combat)**: pistol, shotgun, punch, disarm, grab and throw
+  (bottles shatter, chairs and guns bounce and can be picked up again; a hit
+  stuns and disarms), three enemy types, death shatter, instant restart.
+- **M3 onward**: replays, the editor, audio, level set. See the spec.
