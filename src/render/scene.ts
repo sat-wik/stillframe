@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ENEMIES, PLAYER, type WeaponId } from '../content/defs';
 import type { LevelDef } from '../content/level';
-import type { Enemy, WorldState } from '../sim/types';
+import type { Enemy, PropKind, WorldState } from '../sim/types';
 import { lerp } from '../sim/vec';
 import { SCENE_FRAG, SCENE_VERT } from './ascii/shaders';
 import { Cls } from './palette';
@@ -54,6 +54,36 @@ function enemyGun(weapon: WeaponId): THREE.Group {
     g.add(box(MATS.weapon, 0.13, 1.0, 0.13, 0, -0.4, -0.05)); // barrel
     g.add(box(MATS.weapon, 0.16, 0.34, 0.2, 0, -0.02, 0)); // receiver
     g.add(box(MATS.weapon, 0.14, 0.16, 0.34, 0, 0.14, 0.12)); // stock
+  }
+  return g;
+}
+
+/**
+ * Loose props: bottles, chairs and dropped guns, all in the pickup hue so they
+ * read as grabbable. Origin at the object's center of mass.
+ */
+function propModel(kind: PropKind, weapon: WeaponId | null, mat: THREE.Material = MATS.pickup): THREE.Group {
+  if (kind === 'gun' && weapon) {
+    const g = enemyGun(weapon);
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh) o.material = mat;
+    });
+    g.rotation.x = Math.PI / 2;
+    const holder = new THREE.Group();
+    holder.add(g);
+    return holder;
+  }
+  const g = new THREE.Group();
+  if (kind === 'bottle') {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.24, 10), mat);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.12, 8), mat);
+    neck.position.y = 0.17;
+    g.add(body, neck);
+  } else {
+    // Chair, centered on its seat.
+    g.add(box(mat, 0.46, 0.06, 0.46, 0, 0, 0)); // seat
+    for (const [x, z] of [[-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]] as const) g.add(box(mat, 0.05, 0.45, 0.05, x, -0.24, z));
+    g.add(box(mat, 0.46, 0.5, 0.05, 0, 0.28, 0.2)); // back
   }
   return g;
 }
@@ -213,6 +243,7 @@ export class ViewModel {
   private fists = new THREE.Group();
   private fistL = new THREE.Group();
   private fistR = new THREE.Group();
+  private held: Record<'bottle' | 'chair', THREE.Group> = { bottle: new THREE.Group(), chair: new THREE.Group() };
   private muzzles: Record<WeaponId, THREE.Object3D> = { pistol: new THREE.Object3D(), shotgun: new THREE.Object3D() };
   private recoil = 0;
   private punchT = -1;
@@ -285,6 +316,19 @@ export class ViewModel {
     fist(1, this.fistR);
     this.fistL.position.copy(this.rest.l);
     this.fistR.position.copy(this.rest.r);
+
+    // A held bottle sits tipped forward in the right fist; a chair is gripped by its back,
+    // legs forward, low on the right.
+    this.held.bottle.add(propModel('bottle', null, MATS.viewGun));
+    this.held.bottle.scale.setScalar(0.45);
+    this.held.bottle.rotation.x = -1.1; // tipped forward, ready to throw
+    this.held.bottle.position.set(0, 0.02, -0.07);
+    const chair = propModel('chair', null, MATS.viewGun);
+    chair.scale.setScalar(0.55);
+    chair.rotation.set(-0.5, 0.4, 0);
+    chair.position.set(0, -0.2, -0.3);
+    this.held.chair.add(chair);
+    this.fistR.add(this.held.bottle, this.held.chair);
   }
 
   /** Hold to aim down sights; only has an effect while holding a gun. */
@@ -294,6 +338,13 @@ export class ViewModel {
 
   onShot(): void {
     this.recoil = 1;
+  }
+
+  /** The throwing arm swings through like a punch from the right hand. */
+  onThrow(): void {
+    this.punchT = 0;
+    this.punchSide = -1; // onPunch flips it to the right hand
+    this.onPunch();
   }
 
   onPunch(): void {
@@ -307,7 +358,7 @@ export class ViewModel {
     return this.muzzles[weapon].getWorldPosition(out);
   }
 
-  update(camera: THREE.Camera, weapon: WeaponId | null, alive: boolean, moveSpeed: number, realDt: number): void {
+  update(camera: THREE.Camera, weapon: WeaponId | null, item: 'bottle' | 'chair' | null, alive: boolean, moveSpeed: number, realDt: number): void {
     this.root.visible = alive;
     this.root.position.copy(camera.position);
     this.root.quaternion.copy(camera.quaternion);
@@ -326,6 +377,8 @@ export class ViewModel {
     this.pistol.visible = weapon === 'pistol';
     this.shotgun.visible = weapon === 'shotgun';
     this.fists.visible = weapon === null;
+    this.held.bottle.visible = item === 'bottle';
+    this.held.chair.visible = item === 'chair';
     const gun = weapon === 'pistol' ? this.pistol : this.shotgun;
     // At the hip the gun is turned inward so its side profile reads as a gun.
     // Aiming down sights swings it square to the view with the sights on the
@@ -368,6 +421,7 @@ export class SceneView {
   private levelGroup = new THREE.Group();
   private enemies = new Map<number, Humanoid>();
   private props = new Map<number, THREE.Object3D>();
+  private thrown = new Map<number, THREE.Object3D>();
   private level: LevelDef | null = null;
   private lastPlayer = { x: 0, z: 0 };
   /** Field of view from settings; aiming narrows it. */
@@ -384,8 +438,10 @@ export class SceneView {
     this.levelGroup.clear();
     for (const v of this.enemies.values()) this.scene.remove(v.root);
     for (const m of this.props.values()) this.scene.remove(m);
+    for (const m of this.thrown.values()) this.scene.remove(m);
     this.enemies.clear();
     this.props.clear();
+    this.thrown.clear();
 
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(level.bounds.w, level.bounds.d), MATS.floor);
     floor.rotation.x = -Math.PI / 2;
@@ -440,29 +496,48 @@ export class SceneView {
       seenProps.add(pr.id);
       let m = this.props.get(pr.id);
       if (!m) {
-        if (pr.kind === 'gun' && pr.weapon) {
-          // Dropped guns glow in the pickup hue so they read as grabbable.
-          m = enemyGun(pr.weapon);
-          m.traverse((o) => {
-            if (o instanceof THREE.Mesh) o.material = MATS.pickup;
-          });
-          m.rotation.x = Math.PI / 2;
-        } else {
-          m = box(MATS.pickup, 0.3, 0.3, 0.3);
-        }
+        m = propModel(pr.kind, pr.weapon);
         const holder = new THREE.Group();
         holder.add(m);
         this.scene.add(holder);
         this.props.set(pr.id, holder);
         m = holder;
       }
-      m.position.set(pr.pos.x, 0.4 + Math.sin(gameTime * 3 + pr.id) * 0.06, pr.pos.z);
-      m.rotation.y = gameTime * 1.5 + pr.id;
+      if (pr.kind === 'chair') {
+        // Chairs stand on the floor; small items hover and turn so they read as pickups.
+        m.position.set(pr.pos.x, 0.48, pr.pos.z);
+        m.rotation.y = pr.id * 1.7;
+      } else {
+        m.position.set(pr.pos.x, 0.4 + Math.sin(gameTime * 3 + pr.id) * 0.06, pr.pos.z);
+        m.rotation.y = gameTime * 1.5 + pr.id;
+      }
     }
     for (const [id, m] of this.props) {
       if (!seenProps.has(id)) {
         this.scene.remove(m);
         this.props.delete(id);
+      }
+    }
+
+    // Objects in flight tumble end over end (visual only).
+    const seenThrown = new Set<number>();
+    for (const t of w.thrown) {
+      seenThrown.add(t.id);
+      let m = this.thrown.get(t.id);
+      if (!m) {
+        m = propModel(t.kind, t.weapon);
+        this.scene.add(m);
+        this.thrown.set(t.id, m);
+      }
+      const p = lerp(t.prevPos, t.pos, alpha);
+      m.position.set(p.x, p.y, p.z);
+      const spin = (t.age + alpha / 120) * 11;
+      m.rotation.set(spin, Math.atan2(t.vel.x, t.vel.z), 0);
+    }
+    for (const [id, m] of this.thrown) {
+      if (!seenThrown.has(id)) {
+        this.scene.remove(m);
+        this.thrown.delete(id);
       }
     }
 
@@ -474,7 +549,7 @@ export class SceneView {
     const moved = Math.hypot(pp.x - this.lastPlayer.x, pp.z - this.lastPlayer.z);
     this.lastPlayer = { x: pp.x, z: pp.z };
     const moveSpeed = realDt > 0 ? Math.min(1, moved / realDt / PLAYER.speed) : 0;
-    this.viewModel.update(this.camera, w.player.weapon, w.player.alive, moveSpeed, realDt);
+    this.viewModel.update(this.camera, w.player.weapon, w.player.item, w.player.alive, moveSpeed, realDt);
 
     // Zoom follows the sights.
     const fov = this.baseFov * (1 - (1 - ADS_ZOOM) * this.viewModel.ads);

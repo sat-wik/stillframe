@@ -1,7 +1,8 @@
-import { BULLET_CLASH_RADIUS, ENEMIES, PLAYER, WEAPONS } from '../content/defs';
+import { BULLET_CLASH_RADIUS, ENEMIES, PLAYER, THROW, WEAPONS } from '../content/defs';
 import { tickEnemy } from './ai';
 import { movingPointsClosest, resolveCapsule, segmentCapsule, segmentVsLevel, separateCircles } from './collision';
 import { add, clone, copyInto, lerp, scale } from './vec';
+import { throwItem, updateThrown } from './throw';
 import { fireWeapon, muzzleFrom } from './weapons';
 import { updateWaves } from './world';
 import { STEP_DT, type Enemy, type SimEvent, type StepInput, type WorldState } from './types';
@@ -26,6 +27,7 @@ export function step(w: WorldState, input: StepInput): SimEvent[] {
   for (const e of w.enemies) copyInto(e.prevPos, e.pos);
   for (const e of w.enemies) tickEnemy(w, e, events);
   separateCharacters(w);
+  updateThrown(w, events, (e) => dropWeapon(w, e));
   updateBullets(w, events);
   updateOutcome(w, events);
   return events;
@@ -59,25 +61,34 @@ function updatePlayer(w: WorldState, input: StepInput, events: SimEvent[]): void
   p.pos.z += (-cos * my - sin * mx) * PLAYER.speed * STEP_DT;
   resolveCapsule(p.pos, PLAYER.radius, PLAYER.height, w.level.boxes, w.level.cylinders, w.level.def.bounds);
 
-  if (input.fire && p.weapon && p.ammo > 0 && p.cooldown <= 0) {
-    const eye = playerEye(w);
-    fireWeapon(w, p.weapon, 'player', 0, muzzleFrom(eye, p.yaw, p.pitch, 0.4), p.yaw, p.pitch, 0, events);
-    p.ammo--;
-    p.cooldown = WEAPONS[p.weapon].cooldown;
-  }
-
-  if (input.alt && p.punchCooldown <= 0) {
-    if (!p.weapon && tryGrab(w)) return;
-    if (!p.weapon || p.ammo === 0) {
-      // Throwing held items lands in M2; until then an empty gun is dropped
-      // so the player can punch again.
-      if (p.weapon) {
-        p.weapon = null;
-        p.ammo = 0;
-      }
-      punch(w, events);
+  // LMB fires a loaded gun, or throws a bottle or chair.
+  if (input.fire) {
+    if (p.weapon && p.ammo > 0 && p.cooldown <= 0) {
+      const eye = playerEye(w);
+      fireWeapon(w, p.weapon, 'player', 0, muzzleFrom(eye, p.yaw, p.pitch, 0.4), p.yaw, p.pitch, 0, events);
+      p.ammo--;
+      p.cooldown = WEAPONS[p.weapon].cooldown;
+    } else if (p.item && p.punchCooldown <= 0) {
+      throwHeld(w, events);
     }
   }
+
+  // RMB throws whatever is in hand; empty-handed it grabs, or else punches.
+  if (input.alt && p.punchCooldown <= 0) {
+    if (p.weapon || p.item) throwHeld(w, events);
+    else if (!tryGrab(w, events)) punch(w, events);
+  }
+}
+
+function throwHeld(w: WorldState, events: SimEvent[]): void {
+  const p = w.player;
+  const eye = playerEye(w);
+  if (p.weapon) throwItem(w, 'gun', p.weapon, p.ammo, eye, p.yaw, p.pitch, events);
+  else if (p.item) throwItem(w, p.item, null, 0, eye, p.yaw, p.pitch, events);
+  p.weapon = null;
+  p.item = null;
+  p.ammo = 0;
+  p.punchCooldown = THROW.cooldown;
 }
 
 /** The nearest thing within reach and in front of the player, if any. */
@@ -99,13 +110,20 @@ function inReach<T extends { pos: { x: number; z: number } }>(w: WorldState, ite
   return best;
 }
 
-function tryGrab(w: WorldState): boolean {
-  const guns = w.props.filter((pr) => pr.weapon !== null && pr.ammo > 0);
-  const prop = inReach(w, guns, PLAYER.punchRange);
-  if (!prop || !prop.weapon) return false;
-  w.player.weapon = prop.weapon;
-  w.player.ammo = prop.ammo;
+/** Picks up the nearest prop in reach: a gun (even empty, to throw) or a throwable. */
+function tryGrab(w: WorldState, events: SimEvent[]): boolean {
+  const prop = inReach(w, w.props, PLAYER.punchRange);
+  if (!prop) return false;
+  const p = w.player;
+  if (prop.kind === 'gun' && prop.weapon) {
+    p.weapon = prop.weapon;
+    p.ammo = prop.ammo;
+  } else if (prop.kind !== 'gun') {
+    p.item = prop.kind;
+  } else return false;
   w.props = w.props.filter((pr) => pr !== prop);
+  p.punchCooldown = PLAYER.punchCooldown;
+  events.push({ type: 'pickup', kind: prop.kind, weapon: prop.weapon });
   return true;
 }
 

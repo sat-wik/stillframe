@@ -32,6 +32,8 @@ export interface Player {
   alive: boolean;
   weapon: WeaponId | null;
   ammo: number;
+  /** A non-gun throwable in hand. Mutually exclusive with `weapon`. */
+  item: 'bottle' | 'chair' | null;
   cooldown: number;
   punchCooldown: number;
 }
@@ -75,12 +77,29 @@ export interface Bullet {
   ttl: number; // game seconds left
 }
 
+export type PropKind = 'bottle' | 'chair' | 'gun';
+
 export interface Prop {
   id: number;
-  kind: 'bottle' | 'chair' | 'gun';
+  kind: PropKind;
   pos: Vec3;
   weapon: WeaponId | null;
   ammo: number;
+}
+
+/** An object in flight after a throw. It settles back into a Prop at rest. */
+export interface Thrown {
+  id: number;
+  kind: PropKind;
+  weapon: WeaponId | null;
+  ammo: number;
+  pos: Vec3;
+  prevPos: Vec3;
+  vel: Vec3;
+  /** Seconds in the air, capped by THROW.maxFlight. */
+  age: number;
+  /** Whether it already struck an enemy (a throw stuns at most once). */
+  spent: boolean;
 }
 
 export interface Box {
@@ -119,6 +138,7 @@ export interface WorldState {
   enemies: Enemy[];
   bullets: Bullet[];
   props: Prop[]; // throwables, dropped guns
+  thrown: Thrown[];
   level: LevelRuntime; // static colliders, triggers, wave state
   kills: number;
   nextId: number;
@@ -135,4 +155,7 @@ export type SimEvent =
   | { type: 'enemyDeath'; id: number; kind: EnemyKind; pos: Vec3 }
   | { type: 'disarm'; id: number; pos: Vec3 }
   | { type: 'wave'; id: number }
+  | { type: 'throw'; kind: PropKind; pos: Vec3 }
+  | { type: 'impact'; kind: PropKind; target: 'enemy' | 'wall'; broke: boolean; pos: Vec3 }
+  | { type: 'pickup'; kind: PropKind; weapon: WeaponId | null }
   | { type: 'outcome'; outcome: 'won' | 'lost' };

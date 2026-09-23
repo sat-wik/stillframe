@@ -50,5 +50,23 @@ export const PLAYER = {
   punchCooldown: 0.4,
 } as const;
 
+/** Thrown objects (spec section 2.3): any prop or gun; stuns and disarms on hit. */
+export const THROW = {
+  speed: 15, // m/s
+  /** Extra upward angle so throws arc. */
+  loft: 0.08,
+  gravity: 9.8,
+  radius: 0.12,
+  /** Velocity kept along the axis of a bounce. */
+  restitution: 0.35,
+  /** Horizontal velocity kept on each floor bounce. */
+  floorFriction: 0.6,
+  /** Below this speed on the floor, a thrown object settles into a prop. */
+  restSpeed: 0.6,
+  maxFlight: 4,
+  stun: 1.2,
+  cooldown: 0.35,
+} as const;
+
 /** Radius used when testing player bullets against enemy bullets. */
 export const BULLET_CLASH_RADIUS = 0.2;

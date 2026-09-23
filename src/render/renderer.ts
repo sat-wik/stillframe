@@ -124,6 +124,8 @@ export class Renderer {
         this.overlay.flash(vm.muzzleWorld(e.weapon), Cls.HudAlert, true);
       } else if (e.type === 'punch' && e.by === 'player' && w.player.alive) {
         vm.onPunch();
+      } else if (e.type === 'throw') {
+        vm.onThrow();
       }
     }
   }
@@ -173,7 +175,10 @@ export class Renderer {
       const max = WEAPONS[p.weapon].ammo;
       g.text(1, bottom, `${p.weapon.toUpperCase()} `, Cls.Hud);
       for (let i = 0; i < max; i++) g.put(2 + p.weapon.length + i, 1, i < p.ammo ? G.BLOCK : G.SHADE, i < p.ammo ? Cls.Hud : Cls.HudDim, 0, 1);
-      if (p.ammo === 0) g.text(3 + p.weapon.length + max, bottom, 'EMPTY - [RMB] DROP', Cls.HudAlert);
+      if (p.ammo === 0) g.text(3 + p.weapon.length + max, bottom, 'EMPTY - [RMB] THROW IT', Cls.HudAlert);
+      else g.text(3 + p.weapon.length + max, bottom, '[RMB] THROW', Cls.HudDim);
+    } else if (p.item) {
+      g.text(1, bottom, `${p.item.toUpperCase()}  [LMB/RMB] THROW`, Cls.Hud);
     } else {
       g.text(1, bottom, 'FISTS  [RMB] PUNCH / GRAB', Cls.Hud);
     }

@@ -53,3 +53,14 @@ describe('time controller', () => {
     );
   });
 });
+
+describe('looking without moving', () => {
+  it('moves time a little: faster than standing still, far slower than walking', () => {
+    // A steady scan at 1.5 rad/s, held for a second of real time.
+    const look = { moveMag: 0, lookSpeed: 1.5 / cfg.lookFullSpeed, actionPulse: 0 };
+    let s = cfg.floor;
+    for (let i = 0; i < 60; i++) s = updateTimeScale(s, look, cfg, 1 / 60);
+    expect(s).toBeGreaterThan(0.1);
+    expect(s).toBeLessThan(0.35);
+  });
+});
