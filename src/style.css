@@ -1,0 +1,73 @@
+:root {
+  --fg: #d6dcd6;
+  --dim: #6f7a74;
+  --accent: #ffb000;
+  color-scheme: dark;
+}
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: var(--fg);
+  font: 14px/1.4 'DejaVu Sans Mono', Menlo, Consolas, 'Courier New', monospace;
+  overflow: hidden;
+}
+#screen {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  cursor: crosshair;
+}
+.menu {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgb(0 0 0 / 0.78);
+}
+.menu[hidden] {
+  display: none;
+}
+.menu .title {
+  color: var(--accent);
+  margin: 0;
+  line-height: 1.1;
+}
+.menu .tag,
+.menu .help {
+  color: var(--dim);
+  margin: 0;
+}
+.menu button {
+  font: inherit;
+  color: var(--fg);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  padding: 2px 8px;
+  text-align: left;
+  white-space: pre;
+}
+.menu button:hover:not(:disabled),
+.menu button:focus-visible {
+  background: var(--fg);
+  color: #000;
+  outline: none;
+}
+.menu button:disabled {
+  color: var(--dim);
+  cursor: default;
+}
+.menu .play {
+  color: var(--accent);
+  font-size: 18px;
+}
+.menu .levels {
+  display: flex;
+  flex-direction: column;
+  min-width: 360px;
+}

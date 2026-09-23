@@ -1,0 +1,212 @@
+{
+  "id": "02-close-quarters",
+  "name": "Close Quarters",
+  "version": 1,
+  "bounds": {
+    "w": 20,
+    "d": 20,
+    "h": 3
+  },
+  "playerSpawn": {
+    "pos": {
+      "x": 10,
+      "y": 0,
+      "z": 17.5
+    },
+    "yaw": 0
+  },
+  "playerWeapon": null,
+  "geometry": [
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 20,
+        "y": 3,
+        "z": 0.4
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 19.6
+      },
+      "max": {
+        "x": 20,
+        "y": 3,
+        "z": 20
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 0.4,
+        "y": 3,
+        "z": 20
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 19.6,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 20,
+        "y": 3,
+        "z": 20
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 0.4,
+        "y": 0,
+        "z": 10
+      },
+      "max": {
+        "x": 7,
+        "y": 3,
+        "z": 10.6
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 13,
+        "y": 0,
+        "z": 10
+      },
+      "max": {
+        "x": 19.6,
+        "y": 3,
+        "z": 10.6
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 9,
+        "y": 0,
+        "z": 5
+      },
+      "max": {
+        "x": 11,
+        "y": 1.1,
+        "z": 6
+      },
+      "solid": true
+    },
+    {
+      "kind": "cylinder",
+      "center": {
+        "x": 5,
+        "y": 0,
+        "z": 15
+      },
+      "r": 0.6,
+      "h": 3
+    },
+    {
+      "kind": "cylinder",
+      "center": {
+        "x": 15,
+        "y": 0,
+        "z": 15
+      },
+      "r": 0.6,
+      "h": 3
+    }
+  ],
+  "props": [
+    {
+      "kind": "gun",
+      "pos": {
+        "x": 10,
+        "y": 0,
+        "z": 15.5
+      },
+      "weapon": "pistol"
+    }
+  ],
+  "enemies": [
+    {
+      "kind": "grunt",
+      "pos": {
+        "x": 4,
+        "y": 0,
+        "z": 13
+      },
+      "yaw": 0,
+      "weapon": null,
+      "wave": 0
+    },
+    {
+      "kind": "gunner",
+      "pos": {
+        "x": 10,
+        "y": 0,
+        "z": 3
+      },
+      "yaw": 3.14159,
+      "weapon": "pistol",
+      "wave": 0
+    },
+    {
+      "kind": "heavy",
+      "pos": {
+        "x": 4,
+        "y": 0,
+        "z": 4
+      },
+      "yaw": 3.14159,
+      "weapon": "shotgun",
+      "wave": 1
+    },
+    {
+      "kind": "grunt",
+      "pos": {
+        "x": 16,
+        "y": 0,
+        "z": 4
+      },
+      "yaw": 3.14159,
+      "weapon": null,
+      "wave": 1
+    }
+  ],
+  "waves": [
+    {
+      "id": 0,
+      "trigger": {
+        "kind": "start"
+      }
+    },
+    {
+      "id": 1,
+      "trigger": {
+        "kind": "killed",
+        "count": 2
+      }
+    }
+  ],
+  "parTimeSec": 40
+}
