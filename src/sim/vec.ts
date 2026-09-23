@@ -1,0 +1,49 @@
+export interface Vec3 {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export const v3 = (x = 0, y = 0, z = 0): Vec3 => ({ x, y, z });
+export const clone = (a: Vec3): Vec3 => ({ x: a.x, y: a.y, z: a.z });
+export const add = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
+export const sub = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+export const scale = (a: Vec3, s: number): Vec3 => ({ x: a.x * s, y: a.y * s, z: a.z * s });
+export const dot = (a: Vec3, b: Vec3): number => a.x * b.x + a.y * b.y + a.z * b.z;
+export const len = (a: Vec3): number => Math.sqrt(dot(a, a));
+export const lerp = (a: Vec3, b: Vec3, t: number): Vec3 => ({
+  x: a.x + (b.x - a.x) * t,
+  y: a.y + (b.y - a.y) * t,
+  z: a.z + (b.z - a.z) * t,
+});
+export const normalize = (a: Vec3): Vec3 => {
+  const l = len(a);
+  return l > 1e-9 ? scale(a, 1 / l) : v3();
+};
+export const distXZ = (a: Vec3, b: Vec3): number => Math.hypot(a.x - b.x, a.z - b.z);
+export const copyInto = (out: Vec3, a: Vec3): void => {
+  out.x = a.x;
+  out.y = a.y;
+  out.z = a.z;
+};
+
+/**
+ * Forward direction for a yaw/pitch pair. Yaw 0 looks down -Z (the Three.js
+ * camera convention), positive yaw turns left, positive pitch looks up.
+ */
+export function dirFromYawPitch(yaw: number, pitch: number): Vec3 {
+  const c = Math.cos(pitch);
+  return { x: -Math.sin(yaw) * c, y: Math.sin(pitch), z: -Math.cos(yaw) * c };
+}
+
+/** Yaw that faces from `from` toward `to` on the XZ plane. */
+export function yawTowards(from: Vec3, to: Vec3): number {
+  return Math.atan2(-(to.x - from.x), -(to.z - from.z));
+}
+
+export function wrapAngle(a: number): number {
+  const TAU = Math.PI * 2;
+  a = (a + Math.PI) % TAU;
+  if (a < 0) a += TAU;
+  return a - Math.PI;
+}

@@ -1,0 +1,184 @@
+{
+  "id": "01-first-light",
+  "name": "First Light",
+  "version": 1,
+  "bounds": {
+    "w": 16,
+    "d": 22,
+    "h": 3
+  },
+  "playerSpawn": {
+    "pos": {
+      "x": 8,
+      "y": 0,
+      "z": 19.5
+    },
+    "yaw": 0
+  },
+  "playerWeapon": "pistol",
+  "geometry": [
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 16,
+        "y": 3,
+        "z": 0.4
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 21.6
+      },
+      "max": {
+        "x": 16,
+        "y": 3,
+        "z": 22
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 0.4,
+        "y": 3,
+        "z": 22
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 15.6,
+        "y": 0,
+        "z": 0
+      },
+      "max": {
+        "x": 16,
+        "y": 3,
+        "z": 22
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 3,
+        "y": 0,
+        "z": 12
+      },
+      "max": {
+        "x": 5,
+        "y": 1.1,
+        "z": 13
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 11,
+        "y": 0,
+        "z": 12
+      },
+      "max": {
+        "x": 13,
+        "y": 1.1,
+        "z": 13
+      },
+      "solid": true
+    },
+    {
+      "kind": "box",
+      "min": {
+        "x": 7,
+        "y": 0,
+        "z": 8
+      },
+      "max": {
+        "x": 9,
+        "y": 2.2,
+        "z": 8.6
+      },
+      "solid": true
+    },
+    {
+      "kind": "cylinder",
+      "center": {
+        "x": 4,
+        "y": 0,
+        "z": 5
+      },
+      "r": 0.5,
+      "h": 3
+    },
+    {
+      "kind": "cylinder",
+      "center": {
+        "x": 12,
+        "y": 0,
+        "z": 5
+      },
+      "r": 0.5,
+      "h": 3
+    }
+  ],
+  "props": [],
+  "enemies": [
+    {
+      "kind": "gunner",
+      "pos": {
+        "x": 3,
+        "y": 0,
+        "z": 6
+      },
+      "yaw": 3.14159,
+      "weapon": "pistol",
+      "wave": 0
+    },
+    {
+      "kind": "gunner",
+      "pos": {
+        "x": 8,
+        "y": 0,
+        "z": 5
+      },
+      "yaw": 3.14159,
+      "weapon": "pistol",
+      "wave": 0
+    },
+    {
+      "kind": "gunner",
+      "pos": {
+        "x": 13,
+        "y": 0,
+        "z": 6
+      },
+      "yaw": 3.14159,
+      "weapon": "pistol",
+      "wave": 0
+    }
+  ],
+  "waves": [
+    {
+      "id": 0,
+      "trigger": {
+        "kind": "start"
+      }
+    }
+  ],
+  "parTimeSec": 25
+}
