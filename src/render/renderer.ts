@@ -106,6 +106,7 @@ export class Renderer {
     (this.uniforms.uCellPx!.value as THREE.Vector2).set(cellW, cellH);
     (this.uniforms.uResolution!.value as THREE.Vector2).set(pxW, pxH);
     this.view.camera.aspect = (cols * cellW) / (rows * cellH);
+    this.view.baseFov = this.settings.fov;
     this.view.camera.fov = this.settings.fov;
     this.view.camera.updateProjectionMatrix();
   }
@@ -162,7 +163,7 @@ export class Renderer {
     g.blank(0, rows - 1, cols);
     g.blank(0, rows - 2, cols);
 
-    if (p.alive) drawCrosshair(g, onTarget(w, look) ? Cls.Target : Cls.HudAlert);
+    if (p.alive) drawCrosshair(g, onTarget(w, look) ? Cls.Target : Cls.HudAlert, this.view.viewModel.ads > 0.5);
 
     g.text(1, 0, `${String(hud.levelIndex + 1).padStart(2, '0')}/${String(hud.levelCount).padStart(2, '0')} ${hud.levelName.toUpperCase()}`, Cls.HudDim);
 
@@ -204,23 +205,19 @@ export class Renderer {
 }
 
 /**
- * A big four-arm crosshair with a gap, drawn on top of everything with a dark
- * backing so it reads over bright walls. Cells are about twice as tall as
- * wide, so horizontal arms are twice as long in cells.
+ * A compact crosshair: a center dot with one bar on each side, drawn straight
+ * over the scene with no backing. While aiming down sights the gun's own sights
+ * do the work, so only the dot stays.
  */
-function drawCrosshair(g: Overlay['grid'], cls: number): void {
+function drawCrosshair(g: Overlay['grid'], cls: number, aimed: boolean): void {
   const cx = Math.floor(g.cols / 2);
   const cy = Math.floor(g.rows / 2);
-  for (let dx = -5; dx <= 5; dx++) for (let dy = -3; dy <= 3; dy++) g.put(cx + dx, cy + dy, G.BLOCK, Cls.Empty, 0, 0);
-  g.put(cx, cy, G.BULLET, cls, 0, 1);
-  for (const dx of [2, 3, 4]) {
-    g.put(cx - dx, cy, G.HBAR, cls, 0, 1);
-    g.put(cx + dx, cy, G.HBAR, cls, 0, 1);
-  }
-  for (const dy of [2, 3]) {
-    g.put(cx, cy + dy, G.VBAR, cls, 0, 1);
-    g.put(cx, cy - dy, G.VBAR, cls, 0, 1);
-  }
+  g.put(cx, cy, G.DOT, cls, 0, 1);
+  if (aimed) return;
+  g.put(cx - 2, cy, G.HBAR, cls, 0, 1);
+  g.put(cx + 2, cy, G.HBAR, cls, 0, 1);
+  g.put(cx, cy + 1, G.VBAR, cls, 0, 1);
+  g.put(cx, cy - 1, G.VBAR, cls, 0, 1);
 }
 
 /** Whether the aim ray hits an enemy before any wall. */

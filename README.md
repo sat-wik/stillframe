@@ -12,7 +12,8 @@ npm run dev        # http://localhost:5173
 ```
 
 Click to lock the mouse. **WASD** moves, the **mouse** aims, **LMB** fires,
-**RMB** punches or grabs a dropped gun, **R** restarts, **N** goes to the
+**RMB** punches or grabs a dropped gun, holding **Shift** aims down
+the sights, **R** restarts, **N** goes to the
 next room after a clear, **Esc** pauses, and **`** toggles the debug overlay
 (**V** cycles through the raw 3D, depth and class-ID views).
 

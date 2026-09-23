@@ -182,6 +182,23 @@ function poseHumanoid(h: Humanoid, e: Enemy, stride: number, aimPitch: number): 
 
 // ── First-person viewmodel ──────────────────────────────────────────────────
 
+/** Seconds to raise or lower the sights. */
+const ADS_TIME = 0.12;
+/** Field of view multiplier when fully aimed. */
+export const ADS_ZOOM = 0.65;
+
+// Viewmodel gun poses in camera space. Aimed, the slide or barrel sits a few
+// degrees below the view axis and only the front sight rises toward it, so the
+// target stays visible above the gun.
+const HIP = {
+  pistol: { pos: [0.22, -0.18, -0.42], yaw: 0.5 },
+  shotgun: { pos: [0.17, -0.19, -0.36], yaw: 0.35 },
+} as const;
+const ADS = {
+  pistol: { pos: [0, -0.1, -0.5] },
+  shotgun: { pos: [0, -0.118, -0.46] },
+} as const;
+
 /**
  * The player's own hands and gun, rendered in a second pass with a cleared
  * depth buffer so they never clip into walls. Animations run in real time so
@@ -201,6 +218,9 @@ export class ViewModel {
   private punchT = -1;
   private punchSide = 1;
   private bob = 0;
+  private adsTarget = false;
+  /** Aim-down-sights blend, 0 = hip, 1 = sights on the crosshair. */
+  ads = 0;
   // A raised guard: both fists sit in the lower view, knuckles forward.
   private rest = { l: new THREE.Vector3(-0.19, -0.15, -0.42), r: new THREE.Vector3(0.19, -0.15, -0.42) };
 
@@ -267,6 +287,11 @@ export class ViewModel {
     this.fistR.position.copy(this.rest.r);
   }
 
+  /** Hold to aim down sights; only has an effect while holding a gun. */
+  setAim(held: boolean): void {
+    this.adsTarget = held;
+  }
+
   onShot(): void {
     this.recoil = 1;
   }
@@ -287,8 +312,14 @@ export class ViewModel {
     this.root.position.copy(camera.position);
     this.root.quaternion.copy(camera.quaternion);
 
+    const want = this.adsTarget && weapon !== null && alive ? 1 : 0;
+    const step = realDt / ADS_TIME;
+    this.ads = want > this.ads ? Math.min(want, this.ads + step) : Math.max(want, this.ads - step);
+    const a = this.ads * this.ads * (3 - 2 * this.ads); // smoothstep
+
     this.bob += moveSpeed * realDt * 9;
-    this.sway.position.set(Math.sin(this.bob) * 0.012, -Math.abs(Math.cos(this.bob)) * 0.014, 0);
+    const bobK = 1 - 0.8 * a;
+    this.sway.position.set(Math.sin(this.bob) * 0.012 * bobK, -Math.abs(Math.cos(this.bob)) * 0.014 * bobK, 0);
 
     this.recoil = Math.max(0, this.recoil - realDt / 0.14);
     const k = this.recoil * this.recoil;
@@ -296,10 +327,17 @@ export class ViewModel {
     this.shotgun.visible = weapon === 'shotgun';
     this.fists.visible = weapon === null;
     const gun = weapon === 'pistol' ? this.pistol : this.shotgun;
-    // Turned inward so the side profile shows: slide, grip and barrel read as a
-    // gun silhouette instead of a box seen from behind.
-    gun.rotation.set(0.05 + 0.28 * k, weapon === 'pistol' ? 0.5 : 0.35, 0.1);
-    gun.position.z = (weapon === 'pistol' ? -0.42 : -0.36) + 0.07 * k;
+    // At the hip the gun is turned inward so its side profile reads as a gun.
+    // Aiming down sights swings it square to the view with the sights on the
+    // crosshair. Recoil still kicks in both poses.
+    const hip = weapon === 'pistol' ? HIP.pistol : HIP.shotgun;
+    const sights = weapon === 'pistol' ? ADS.pistol : ADS.shotgun;
+    gun.position.set(
+      hip.pos[0] + (sights.pos[0] - hip.pos[0]) * a,
+      hip.pos[1] + (sights.pos[1] - hip.pos[1]) * a,
+      hip.pos[2] + (sights.pos[2] - hip.pos[2]) * a + 0.07 * k,
+    );
+    gun.rotation.set((0.05 + 0.28 * k) * (1 - a * 0.6), hip.yaw * (1 - a), 0.1 * (1 - a));
 
     // Punch: snap the fist forward to the crosshair, then pull it back.
     this.fistL.position.copy(this.rest.l);
@@ -332,6 +370,8 @@ export class SceneView {
   private props = new Map<number, THREE.Object3D>();
   private level: LevelDef | null = null;
   private lastPlayer = { x: 0, z: 0 };
+  /** Field of view from settings; aiming narrows it. */
+  baseFov = 75;
 
   constructor() {
     this.camera.rotation.order = 'YXZ';
@@ -435,5 +475,12 @@ export class SceneView {
     this.lastPlayer = { x: pp.x, z: pp.z };
     const moveSpeed = realDt > 0 ? Math.min(1, moved / realDt / PLAYER.speed) : 0;
     this.viewModel.update(this.camera, w.player.weapon, w.player.alive, moveSpeed, realDt);
+
+    // Zoom follows the sights.
+    const fov = this.baseFov * (1 - (1 - ADS_ZOOM) * this.viewModel.ads);
+    if (Math.abs(this.camera.fov - fov) > 1e-4) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
   }
 }

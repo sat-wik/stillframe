@@ -24,7 +24,7 @@ export class Menu {
       <button class="play">[ click to play ]</button>
       <div class="levels"></div>
       <pre class="help">WASD move    MOUSE aim    LMB fire    RMB punch / grab
-R restart    N next room    ESC pause    \` debug</pre>`;
+SHIFT aim down sights    R restart    N next room    ESC pause    \` debug</pre>`;
     this.el.querySelector('.title')!.textContent = TITLE;
     this.list = this.el.querySelector('.levels')!;
     this.el.querySelector('.play')!.addEventListener('click', () => this.onPlay());
