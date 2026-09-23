@@ -3,6 +3,7 @@ import { debugLines, FrameStats } from './debug/stats';
 import { Input } from './platform/input';
 import { writeSave, type SaveData } from './platform/storage';
 import { Renderer, VIEW_NAMES, type ViewMode } from './render/renderer';
+import { ADS_ZOOM } from './render/scene';
 import { step } from './sim/step';
 import { STEP_DT, type WorldState } from './sim/types';
 import { createWorld } from './sim/world';
@@ -99,6 +100,7 @@ export class Game {
 
     if (!this.paused) {
       const inp = this.input.sample();
+      this.renderer.view.viewModel.setAim(inp.aim);
       if (inp.newAction) this.pulse = 1;
       const playing = w.outcome === 'playing';
       const moveMag = playing ? Math.min(1, Math.hypot(inp.moveX, inp.moveY)) : 0;
@@ -134,6 +136,9 @@ export class Game {
       }
     }
 
+    if (this.paused) this.renderer.view.viewModel.setAim(false);
+    // Slower look while zoomed, so the same mouse move covers the same on-screen distance.
+    this.input.lookScale = 1 - (1 - ADS_ZOOM) * this.renderer.view.viewModel.ads;
     this.stats.record(realDt, steps);
     const alpha = w.outcome === 'playing' ? Math.min(1, this.acc / STEP_DT) : 1;
     this.renderer.render(w, alpha, { yaw: this.input.yaw, pitch: this.input.pitch }, gameDt, realDt, {

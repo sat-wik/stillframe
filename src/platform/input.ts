@@ -10,6 +10,7 @@ export interface Bindings {
   next: string;
   debug: string;
   debugView: string;
+  aim: string;
 }
 
 export const DEFAULT_BINDINGS: Bindings = {
@@ -21,6 +22,7 @@ export const DEFAULT_BINDINGS: Bindings = {
   next: 'KeyN',
   debug: 'Backquote',
   debugView: 'KeyV',
+  aim: 'ShiftLeft',
 };
 
 export interface FrameInput {
@@ -32,6 +34,8 @@ export interface FrameInput {
   lookRadians: number;
   /** True on the frame a fire/alt press first arrives. */
   newAction: boolean;
+  /** Aim-down-sights key held. */
+  aim: boolean;
 }
 
 export interface LatchedAction {
@@ -48,6 +52,8 @@ export class Input {
   yaw = 0;
   pitch = 0;
   sensitivity = 0.0022;
+  /** Extra look scale, e.g. slower while aiming down sights. */
+  lookScale = 1;
   bindings: Bindings = { ...DEFAULT_BINDINGS };
   private keys = new Set<string>();
   private look = 0;
@@ -67,8 +73,8 @@ export class Input {
     window.addEventListener('blur', () => this.keys.clear());
     document.addEventListener('mousemove', (e) => {
       if (!this.locked) return;
-      const dx = e.movementX * this.sensitivity;
-      const dy = e.movementY * this.sensitivity;
+      const dx = e.movementX * this.sensitivity * this.lookScale;
+      const dy = e.movementY * this.sensitivity * this.lookScale;
       this.yaw -= dx;
       this.pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, this.pitch - dy));
       this.look += Math.hypot(dx, dy);
@@ -117,6 +123,8 @@ export class Input {
       pitch: this.pitch,
       lookRadians: this.look,
       newAction: this.fresh,
+      // Either Shift key aims.
+      aim: this.keys.has(b.aim) || (b.aim === 'ShiftLeft' && this.keys.has('ShiftRight')),
     };
     this.look = 0;
     this.fresh = false;
